@@ -17,7 +17,7 @@ SMACTKEY=""
 SMORGID=""
 SMSYSNAME=""
 UPDATE=""
-KS7TEMPLATE=' #version=RHEL7
+KS7TEMPLATE='#version=RHEL7
 cdrom
 lang en_US.UTF-8
 keyboard us
@@ -275,7 +275,6 @@ createbase() {
 
 # Clone a base image to a VM
 clone() {
-	set -x
 	VERSION="$1"
 	VMNAME="$2"
 	MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
