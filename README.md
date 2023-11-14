@@ -60,7 +60,7 @@ See `vmm help` for all available options.
 
 ## Accessing a VM
 
-The base images and cloned images are created using the `default` network in `libvirt. This network is by default NATted network. By using the libvirt-nss, the Name Service Switch will ustilize the DHCP leasse info to quicky access the VM using its IP number. To configure the Name Service Switch add the `libvirt` directive to the `hosts` line in `/etc/nssswitch.conf`. For example:
+The base images and cloned images are created using the `default` network in `libvirt`. This network is by default NATted network. By using the libvirt-nss, the Name Service Switch will ustilize the DHCP leasse info to quicky access the VM using its IP number. To configure the Name Service Switch add the `libvirt` directive to the `hosts` line in `/etc/nssswitch.conf`. For example:
 
     hosts:      files myhostname libvirt resolve [!UNAVAIL=return] dns
 
