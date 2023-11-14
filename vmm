@@ -219,25 +219,27 @@ createbase() {
 
 	# Set specifics per version
 	case "$VERSION" in
-	7.9)
-		ISO="rhel-server-7.9-x86_64-dvd.iso"
+	7*)
+		ISO="rhel-server-7.${MINOR}-x86_64-dvd.iso"
 		;;
-	8.8)
-		ISO="rhel-8.8-x86_64-dvd.iso"
+	8*)
+		ISO="rhel-8.${MINOR}-x86_64-dvd.iso"
 		;;
 	9.1)
 		ISO="rhel-baseos-9.1-x86_64-dvd.iso"
 		;;
-	9.2)
-		ISO="rhel-9.2-x86_64-dvd.iso"
-		;;
-	9.3)
-		ISO="rhel-9.3-x86_64-dvd.iso"
+	9*)
+		ISO="rhel-9.${MINOR}-x86_64-dvd.iso"
 		;;
 	*)
 		echo "Unknow or unsupported version"
 		exit 1
+		;;
 	esac
+
+
+	echo "$ISO"
+	exit 1
 
 	# Create temporary kickstart file from template
 	dumpkstemplate "$VERSION" | 
@@ -305,7 +307,8 @@ clone() {
 	then
 		# We use the runcmd module i.s.o. rh_subscription because we want to be able to pass the sysname
 		SMREGISTERCMD="runcmd:"
-		if [ -n "$SMUSERNAME" ] && [ -n "$SMPASSWORD" ] then
+		if [ -n "$SMUSERNAME" ] && [ -n "$SMPASSWORD" ]
+	       	then
 			SMREGISTERCMD="$MMREGISTERCMD\n  - subscription-manager register --username '${SMUSERNAME}' --password '${SMPASSWORD}' --name '${SMSYSNAME:-${SMUSERNAME}-${VMNAME}}'"
 		elif [ -n "$SMACTKEY" ] && [ -n "$SMORGID" ]
 		then
