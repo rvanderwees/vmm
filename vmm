@@ -388,6 +388,9 @@ clone() {
 		--noautoconsole \
 		--wait -1 2>&1
 	virsh start "$VMNAME"
+
+	echo "To connect to the VM, run:"
+	echo "vmm connect $VMNAME"
 }
 
 
