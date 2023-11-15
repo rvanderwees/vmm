@@ -390,7 +390,7 @@ clone() {
 	virsh start "$VMNAME"
 
 	echo "To connect to the VM, run:"
-	echo "vmm connect $VMNAME"
+	echo "$(basename $0) connect $VMNAME"
 }
 
 
