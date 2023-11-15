@@ -236,10 +236,6 @@ createbase() {
 		;;
 	esac
 
-
-	echo "$ISO"
-	exit 1
-
 	# Create temporary kickstart file from template
 	dumpkstemplate "$VERSION" | 
 		sed -e "s/__HOSTNAME__/$VMNAME/" > "$TMPFILE"
