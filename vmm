@@ -39,7 +39,8 @@ reboot
 %packages
 # Install Infrastructure Server group (optionally replace with "@^minimal" in case a base OS is needed)
 @^infrastructure-server-environment
-#cloud-init
+cloud-init
+cloud-utils-growpart
 %end
 
 %post --log=/root/ks-post.log
@@ -70,6 +71,7 @@ reboot
 # Install Infrastructure Server group (optionally replace with "@^minimal-environment" in case a base OS is needed)
 @^server-product-environment
 cloud-init
+cloud-utils-growpart
 %end
 
 # Post installation config
