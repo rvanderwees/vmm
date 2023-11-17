@@ -149,7 +149,7 @@ help() {
                         and filesystem inside of the VM.
 	    -n		Specify the base image name to clone from (default "rhel{x.y}base")
 	    -d		Domain name to use in cloud-init for setting the FQDN in the cloned VM
-	    -r		Register the VM after cloning (either using username + password or activation key and org-id
+	    -r		Register the VM after cloning (either using username + password or activation key and org-id)
 	    -u		Username to login to the Red Hat Customer Portal for registring the VM
 	    -p		Password to login to the Red Hat Customer Portal for registring the VM
 	    -a		Activation key to register the VM with the Red Hat Customer Portal (requiers -o)
@@ -167,7 +167,7 @@ help() {
 	    Any valid ssh option can be specified here but at a minimum the hostname.
 	    If configured, it can utilize the libvirt-nss module to determina the VMs ip address from the dnsmasq DHCP leases.
 	    Since the cloud-init template creates a default "admin" user, the default login name will be set to "-l admin" unless
-	    the -l option is already give or the ssh connection string cantains a "@".
+	    the -l option is already given or the ssh connection string contains an "@".
 	    The "-o StrictHostKeyChecking=no" and "-o UserKnownHostsFile=/dev/null" are added by default to allow
 	    easier access to (short lived) VMs (can be insecure).
 		
@@ -176,7 +176,7 @@ help() {
 }
 
 
-# Raise sudo privileges and keep the "alive"
+# Raise sudo privileges and keep it "alive"
 raisepriv() {
 	# Define a tmp file for either kickstart of cloud-init user-data
 	TMPFILE=$(mktemp)
@@ -200,7 +200,7 @@ dumpkstemplate() {
 	then
 		cat "$KSTEMPLATE"
 	else
-		eval echo \""\$KS${MAJOR}TEMPLATE"\" # | base64 -d 
+		eval echo \""\$KS${MAJOR}TEMPLATE"\"
 	fi
 }
 
@@ -267,7 +267,7 @@ createbase() {
 	# Seal the image
 	sudo virt-sysprep -d "${VMNAME}" --selinux-relabel
 
-	# Remove unused empty block (sparsify)
+	# Remove unused empty blocks (sparsify)
 	sudo virt-sparsify --tmp /var/lib/libvirt/images /var/lib/libvirt/images/$VMNAME.qcow2 /var/lib/libvirt/images/$VMNAME-tmp.qcow2
 	sudo mv /var/lib/libvirt/images/$VMNAME-tmp.qcow2 /var/lib/libvirt/images/$VMNAME.qcow2
 }
@@ -323,19 +323,18 @@ clone() {
 		fi
 	fi
 
-	# Check is requested base image exists
+	# Check if requested base image exists
 	sudo stat "/var/lib/libvirt/images/${BASENAME}.qcow2" >/dev/null
 
-	# Check is new image does not already exsists
+	# Check if new image does not already exsists
 	if sudo stat "/var/lib/libvirt/images/${VMNAME}.qcow2" >/dev/null 2>&1
 	then
-		echo "Image already exists!. Please remove before recreating with: virsh undefine $VMNAME --storage vda"
+		echo "Image already exists! Please remove, before recreating, with: virsh undefine $VMNAME --storage vda"
 		exit 1
 	fi
 	
-	# Create new new image
+	# Create new image
 	sudo cp "/var/lib/libvirt/images/${BASENAME}.qcow2" "/var/lib/libvirt/images/${VMNAME}.qcow2"
-
 
 	if [ -n "$DISKRESIZE" ]
 	then
@@ -475,6 +474,7 @@ help)
 	;;
 dumpks|dk)
 	# This is only for debugging purposes or to make adjustments to the ks template
+	# by creating a custom kickstart template and use the -t option
 	dumpkstemplate "$@"
 	;;
 createbase|cb)
@@ -487,10 +487,10 @@ clone)
 	;;
 connect|con)
 	# For temporary / short lived VMs, it convinient not to store the ssh host keys (caution: can be insecure)
-	# The cloud-init config set a default user, so we default to this user in the "connect" command
+	# The cloud-init config sets a default user, so we default to this user in the "connect" command
 	for i in "$@"
 	do
-		# If a user is given on the command line unset the default
+		# If a user is given on the command line, unset the default
 		if echo "$i" | grep -E -q '@|^-l'
 		then
 			SSHPARAM=""
@@ -502,3 +502,5 @@ connect|con)
 	echo "Unknown command!"
 	;;
 esac
+
+# End
