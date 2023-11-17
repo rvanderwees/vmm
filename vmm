@@ -116,8 +116,8 @@ rpmkeys --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
 '
 
 help() {
-	ME=$(basename $0)
-	cat <<- EOF
+	ME=$(/usr/bin/basename $0)
+	/usr/bin/cat <<- EOF
 	$ME {help | dumpks | createbase | clone | connect} (-m mem) (-c vcpus) (-t template) (-n baseimagename) {version} {name}
 
 	COMMANDS:
@@ -182,12 +182,12 @@ help() {
 # Raise sudo privileges and keep it "alive"
 raisepriv() {
 	# Define a tmp file for either kickstart of cloud-init user-data
-	TMPFILE=$(mktemp)
+	TMPFILE=$(/usr/bin/mktemp)
 
 	# This command just list the available sudo commands but running in a loop will keep the timestamp allive
 	echo "This command requires sudo privileges. Please enter your sudo password (if needed):"
-	sudo -l > /dev/null
-	bash -c "while : ; do sudo -l > /dev/null; sleep 60; done" &
+	/usr/bin/sudo -l > /dev/null
+	/usr/bin/bash -c "while : ; do /usr/bin/sudo -l > /dev/null; sleep 60; done" &
 	LOOP="$!"
 
 	# Make sure the tmpfile is removed and the sudo loop is killed when we exit or something fails
@@ -201,7 +201,7 @@ dumpkstemplate() {
 	MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
 	if [ -n "$KSTEMPLATE" ]
 	then
-		cat "$KSTEMPLATE"
+		/usr/bin/cat "$KSTEMPLATE"
 	else
 		eval echo \""\$KS${MAJOR}TEMPLATE"\"
 	fi
@@ -265,7 +265,7 @@ createbase() {
 		--os-variant "$VARIANT" \
 		--disk size=${DISKSIZE},bus=virtio,pool=default \
 		--network network=default \
-		--extra-arg "console=tty0 console=ttyS0,115200n8 net.ifnames=0 inst.ks=file:/$(basename $TMPFILE)" \
+		--extra-arg "console=tty0 console=ttyS0,115200n8 net.ifnames=0 inst.ks=file:/$(/usr/bin/basename $TMPFILE)" \
 		--initrd-inject "$TMPFILE" \
 		--serial pty \
 		--graphics vnc \
@@ -275,11 +275,11 @@ createbase() {
 		--wait -1 2>&1
 
 	# Seal the image
-	sudo virt-sysprep -d "${VMNAME}" --selinux-relabel
+	/usr/bin/sudo /usr/bin/virt-sysprep -d "${VMNAME}" --selinux-relabel
 
 	# Remove unused empty blocks (sparsify)
-	sudo virt-sparsify --tmp /var/lib/libvirt/images /var/lib/libvirt/images/$VMNAME.qcow2 /var/lib/libvirt/images/$VMNAME-tmp.qcow2
-	sudo mv /var/lib/libvirt/images/$VMNAME-tmp.qcow2 /var/lib/libvirt/images/$VMNAME.qcow2
+	/usr/bin/sudo /usr/bin/virt-sparsify --tmp /var/lib/libvirt/images /var/lib/libvirt/images/$VMNAME.qcow2 /var/lib/libvirt/images/$VMNAME-tmp.qcow2
+	/usr/bin/sudo /usr/bin/mv /var/lib/libvirt/images/$VMNAME-tmp.qcow2 /var/lib/libvirt/images/$VMNAME.qcow2
 }
 
 # Clone a base image to a VM
@@ -371,25 +371,25 @@ clone() {
 	fi
 
 	# Check if requested base image exists
-	sudo stat "/var/lib/libvirt/images/${BASENAME}.qcow2" >/dev/null
+	/usr/bin/sudo /usr/bin/stat "/var/lib/libvirt/images/${BASENAME}.qcow2" >/dev/null
 
 	# Check if new image does not already exsists
-	if sudo stat "/var/lib/libvirt/images/${VMNAME}.qcow2" >/dev/null 2>&1
+	if /usr/bin/sudo /usr/bin/stat "/var/lib/libvirt/images/${VMNAME}.qcow2" >/dev/null 2>&1
 	then
 		echo "Image already exists! Please remove, before recreating, with: virsh undefine $VMNAME --storage vda"
 		exit 1
 	fi
 	
 	# Create new image
-	sudo cp "/var/lib/libvirt/images/${BASENAME}.qcow2" "/var/lib/libvirt/images/${VMNAME}.qcow2"
+	/usr/bin/sudo /usr/bin/cp "/var/lib/libvirt/images/${BASENAME}.qcow2" "/var/lib/libvirt/images/${VMNAME}.qcow2"
 
 	if [ -n "$DISKRESIZE" ]
 	then
-		sudo qemu-img resize "/var/lib/libvirt/images/${VMNAME}.qcow2" "$DISKRESIZE"
+		/usr/bin/sudo /usr/bin/qemu-img resize "/var/lib/libvirt/images/${VMNAME}.qcow2" "$DISKRESIZE"
 	fi
 
 	# Prepare cloud-init data
-	cat > "$TMPFILE" <<- EOF
+	/usr/bin/cat > "$TMPFILE" <<- EOF
 	#cloud-config
 	users:
 	  - name: admin
@@ -420,7 +420,7 @@ clone() {
 	EOF
 
 	# Import new image as a new VM and enable cloud-init
-	sudo virt-install \
+	/usr/bin/sudo /usr/bin/virt-install \
 		--memory "$MEM"\
 		--vcpus "$VCPUS" \
 		--name "$VMNAME" \
@@ -440,14 +440,14 @@ clone() {
 	if [ -n "$INSERTISO" ]
 	then
 		setisoname "$MAJOR" "$MINOR"
-		sudo virsh change-media "$VMNAME" sda --source="/var/lib/libvirt/images/$ISO" --config
+		/usr/bin/sudo /usr/bin/virsh change-media "$VMNAME" sda --source="/var/lib/libvirt/images/$ISO" --config
 	fi
 
 	# Start the new VM
-	virsh start "$VMNAME"
+	/usr/bin/virsh start "$VMNAME"
 
 	echo "To connect to the VM, run:"
-	echo "$(basename $0) connect $VMNAME"
+	echo "$(/usr/bin/basename $0) connect $VMNAME"
 }
 
 
@@ -561,7 +561,7 @@ connect|con)
 			SSHPARAM=""
 		fi
 	done
-	ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SSHPARAM "$@"
+	/usr/bin/ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SSHPARAM "$@"
 	;;
 *)
 	echo "Unknown command!"
