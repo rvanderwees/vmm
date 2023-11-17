@@ -51,9 +51,13 @@ To resize the disk, root partition and root filesystem, us the -R option:
 
     $ vmm clone -R "+10G" 8.8 test88
 
-To register the host against the Red Hat Customer Portal using an activation key (username and password is also possibe) and update all packages to the latest version:
+To register the host against the Red Hat Customer Portal using an activation key (username and password is also possibe) and update all packages to the latest version (mutually exclusive with the -i option):
 
     $ vmm clone -r -a activation_key -o orgid -U 8.8 test88
+
+Instead of registring the host to the Red Hat Customer Portal, it is also possible to attach the Installation ISO and configure yum/dnf to use the packages from the ISO (mutually exclusive with the -r option):
+
+    $ vmm clone -i 8.8 test88
 
 See `vmm help` for all available options.
 

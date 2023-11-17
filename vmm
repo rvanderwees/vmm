@@ -6,10 +6,12 @@ set -eu
 MEM="4096"
 VCPUS="2"
 KSTEMPLATE=""
+ISO=""
 BASENAME=""
 SSHPARAM="-l admin"
-DISKSIZE=10
-DISKRESIZE=
+DISKSIZE="10"
+DISKRESIZE=""
+INSERTISO=""
 SMREGISTER=""
 SMUSERNAME=""
 SMPASSWORD=""
@@ -149,7 +151,8 @@ help() {
                         and filesystem inside of the VM.
 	    -n		Specify the base image name to clone from (default "rhel{x.y}base")
 	    -d		Domain name to use in cloud-init for setting the FQDN in the cloned VM
-	    -r		Register the VM after cloning (either using username + password or activation key and org-id)
+	    -i		Insert the RHEL Installation ISO as a CDROM and configure /etc/yum.repos.d (mutually exclusieve with -r)
+	    -r		Register the VM after cloning (using username + password or activation key and org-id) (mutually exclusieve with -i)
 	    -u		Username to login to the Red Hat Customer Portal for registring the VM
 	    -p		Password to login to the Red Hat Customer Portal for registring the VM
 	    -a		Activation key to register the VM with the Red Hat Customer Portal (requiers -o)
@@ -204,22 +207,11 @@ dumpkstemplate() {
 	fi
 }
 
-# Kickstart a base image
-createbase() {
-	# Defaults
-	VERSION="$1"
-	MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
-	MINOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\2/')"
-	VARIANT="rhel${VERSION}"
-	if [ -n "$BASENAME" ]
-	then
-		VMNAME="$BASENAME"
-	else
-		VMNAME="rhel${MAJOR}${MINOR}base"
-	fi
-
-	# Set specifics per version
-	case "$VERSION" in
+# Set the ISO file which is specific per version
+setisoname() {
+	local MAJOR="$1"
+	local MINOR="$2"
+	case "$MAJOR.$MINOR" in
 	7*)
 		ISO="rhel-server-7.${MINOR}-x86_64-dvd.iso"
 		;;
@@ -237,6 +229,24 @@ createbase() {
 		exit 1
 		;;
 	esac
+}
+
+# Kickstart a base image
+createbase() {
+	# Defaults
+	local VERSION="$1"
+	local MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
+	local MINOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\2/')"
+	local VARIANT="rhel${VERSION}"
+	if [ -n "$BASENAME" ]
+	then
+		VMNAME="$BASENAME"
+	else
+		VMNAME="rhel${MAJOR}${MINOR}base"
+	fi
+
+	# Set the ISO file which is specific per version
+	setisoname "$MAJOR" "$MINOR"
 
 	# Create temporary kickstart file from template
 	dumpkstemplate "$VERSION" | 
@@ -274,10 +284,10 @@ createbase() {
 
 # Clone a base image to a VM
 clone() {
-	VERSION="$1"
-	VMNAME="$2"
-	MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
-	MINOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\2/')"
+	local VERSION="$1"
+	local VMNAME="$2"
+	local MAJOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\1/')"
+	local MINOR="$(echo $VERSION | sed -e 's/\([0-9]*\)\.\([0-9]*\)/\2/')"
 	if [ -z "$BASENAME" ]
 	then
 		BASENAME="rhel${MAJOR}${MINOR}base"
@@ -299,17 +309,54 @@ clone() {
 		exit 1
 	fi
 
+	# Are we inserting the Installation ISO
+	if [ -n "$INSERTISO" ]
+	then
+		RUNCMD="runcmd:"
+		RUNCMD="$RUNCMD\n  - mkdir /cdrom"
+		RUNCMD="$RUNCMD\n  - echo '/dev/cdrom    /cdrom    iso9660    ro,loop    0 0' >> /etc/fstab"
+		case "$MAJOR" in
+			7)
+				RUNCMD="$RUNCMD\n  - echo '[rhel-dvd]'                                                                   >  /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'name=Red Hat Enterprise Linux \$releasever - \$basearch'                      >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'baseurl=file:///cdrom'                                                        >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'enabled=1'                                                                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgcheck=1'                                                                   >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release'                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				;;
+			8|9)
+				RUNCMD="$RUNCMD\n  - echo '[rhel-baseos-dvd]'                                                            >  /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'name=Red Hat Enterprise Linux \$releasever for \$basearch - BaseOS (RPMs)'    >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'baseurl=file:///cdrom/BaseOS'                                                 >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'enabled=1'                                                                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgcheck=1'                                                                   >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release'                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo ''                                                                             >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo '[rhel-appstream-dvd]'                                                         >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'name=Red Hat Enterprise Linux \$releasever for \$basearch - AppStream (RPMs)' >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'baseurl=file:///cdrom/AppStream'                                              >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'enabled=1'                                                                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgcheck=1'                                                                   >> /etc/yum.repos.d/rhel-dvd.repo"
+				RUNCMD="$RUNCMD\n  - echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release'                    >> /etc/yum.repos.d/rhel-dvd.repo"
+				;;
+			*)
+				echo "Unknow or unsupported version"
+				exit 1
+				;;
+		esac
+	fi
+
 	# Do we need to register the machine?
 	if [ -n "$SMREGISTER" ]
 	then
 		# We use the runcmd module i.s.o. rh_subscription because we want to be able to pass the sysname
-		SMREGISTERCMD="runcmd:"
+		RUNCMD="runcmd:"
 		if [ -n "$SMUSERNAME" ] && [ -n "$SMPASSWORD" ]
 	       	then
-			SMREGISTERCMD="$MMREGISTERCMD\n  - subscription-manager register --username '${SMUSERNAME}' --password '${SMPASSWORD}' --name '${SMSYSNAME:-${SMUSERNAME}-${VMNAME}}'"
+			RUNCMD="$RUNCMD\n  - subscription-manager register --username '${SMUSERNAME}' --password '${SMPASSWORD}' --name '${SMSYSNAME:-${SMUSERNAME}-${VMNAME}}'"
 		elif [ -n "$SMACTKEY" ] && [ -n "$SMORGID" ]
 		then
-			SMREGISTERCMD="$SMREGISTERCMD\n  - subscription-manager register --activationkey '${SMACTKEY}' --org '${SMORGID}' --name '${SMSYSNAME:-${SMACTKEY}-${VMNAME}}'"
+			RUNCMD="$RUNCMD\n  - subscription-manager register --activationkey '${SMACTKEY}' --org '${SMORGID}' --name '${SMSYSNAME:-${SMACTKEY}-${VMNAME}}'"
 		else
 			echo "Invalid registration information!"
 			exit 1
@@ -318,8 +365,8 @@ clone() {
 		# After registration, do we need to update all packages?
 		if [ -n "$UPDATE" ]
 		then
-			SMREGISTERCMD="$SMREGISTERCMD\n  - yum -y makecache"
-			SMREGISTERCMD="$SMREGISTERCMD\n  - yum -y upgrade"
+			RUNCMD="$RUNCMD\n  - yum -y makecache"
+			RUNCMD="$RUNCMD\n  - yum -y upgrade"
 		fi
 	fi
 
@@ -362,7 +409,7 @@ clone() {
 	        - type: dhcp
 	hostname: ${VMNAME}
 	fqdn: ${VMNAME}.${DOMAIN:-example.com}
-	$(echo -e "${SMREGISTERCMD:-# No registration with Red Hat Customer Portal}")
+	$(echo -e "${RUNCMD:-# No Commands to run}")
 	power_state:
 	  mode: reboot
 	  message: Rebooting machine
@@ -388,6 +435,15 @@ clone() {
 		--network network=default \
 		--noautoconsole \
 		--wait -1 2>&1
+
+	# Are we inserting the Installation ISO
+	if [ -n "$INSERTISO" ]
+	then
+		setisoname "$MAJOR" "$MINOR"
+		sudo virsh change-media "$VMNAME" sda --source="/var/lib/libvirt/images/$ISO" --config
+	fi
+
+	# Start the new VM
 	virsh start "$VMNAME"
 
 	echo "To connect to the VM, run:"
@@ -415,7 +471,7 @@ fi
 COMMAND="$1"
 shift
 
-while getopts "m:c:R:t:n:d:s:ru:p:a:o:S:U" option
+while getopts "m:c:R:t:n:d:s:iru:p:a:o:S:U" option
 do
 	case "$option" in
 	m)
@@ -443,6 +499,9 @@ do
 		;;
 	s)
 		DISKSIZE="$OPTARG"
+		;;
+	i)
+		INSERTISO="true"
 		;;
 	r)
 		SMREGISTER="true"
@@ -482,6 +541,12 @@ createbase|cb)
 	createbase "$@"
 	;;
 clone)
+	if [ -n "$INSERTISO" ] && [ -n "$SMREGISTER" ]
+	then
+		echo "Inserting the Installation ISO and registering the system against the"
+		echo "Red Hat Customer Portal are mutually exclusive. Do not use both!"
+		exit 1
+	fi
 	raisepriv
 	clone "$@"
 	;;
