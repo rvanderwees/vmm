@@ -274,8 +274,8 @@ createbase() {
 		--noautoconsole \
 		--wait -1 2>&1
 
-	# Seal the image
-	/usr/bin/sudo /usr/bin/virt-sysprep -d "${VMNAME}" --selinux-relabel
+	# Seal the image (skip the customize step and defer that to the cloning command)
+	/usr/bin/sudo /usr/bin/virt-sysprep -d "${VMNAME}" --operations defaults,-customize
 
 	# Remove unused empty blocks (sparsify)
 	/usr/bin/sudo /usr/bin/virt-sparsify --tmp /var/lib/libvirt/images /var/lib/libvirt/images/$VMNAME.qcow2 /var/lib/libvirt/images/$VMNAME-tmp.qcow2
@@ -382,6 +382,9 @@ clone() {
 	
 	# Create new image
 	/usr/bin/sudo /usr/bin/cp "/var/lib/libvirt/images/${BASENAME}.qcow2" "/var/lib/libvirt/images/${VMNAME}.qcow2"
+
+	# Customize the image (resetting machine-id and random-seed)
+	/usr/bin/sudo /usr/bin/virt-customize -a "/var/lib/libvirt/images/${VMNAME}.qcow2"
 
 	if [ -n "$DISKRESIZE" ]
 	then
